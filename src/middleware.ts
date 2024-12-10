@@ -1,17 +1,18 @@
-import { withMiddlewares } from "./middlewares";
-import { withIntl } from "./middlewares/withIntl";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico, sitemap.xml, robots.txt (metadata files)
-     */
-    "/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)",
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
   ],
 };
 
-export default withMiddlewares([withIntl]);
+const isAdminRoute = createRouteMatcher(["admin/(.*)"]);
+
+export default clerkMiddleware(async (auth, req) => {
+  if (isAdminRoute(req)) {
+    await auth.protect(
+      (has) => has({ role: "org:admin" }) || has({ role: "org:moderator" })
+    );
+  }
+});
